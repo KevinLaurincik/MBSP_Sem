@@ -36,7 +36,7 @@ def simulate_clinic():
 
     # Generovanie objednaných pacientov
     appointment_times = []
-    for t in range(0, END_TIME, 10):  # Každých 15 minút prídu 2 pacienti
+    for t in range(0, END_TIME, 10):  # Každých 10 minút príde 1 pacient
         for _ in range(1):
             appointment_times.append(t)
 
