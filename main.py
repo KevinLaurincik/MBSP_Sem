@@ -21,7 +21,6 @@ class Patient:
         else:
             self.treatment_time = random.randint(*TREATMENT_TIME_NORMAL)
 
-
 def simulate_clinic(generate_times_fn):
     event_list = []
     doctor_busy_time = {i: 0 for i in range(NUM_DOCTORS)}
@@ -124,8 +123,8 @@ def run_experiment(experiment_number, generate_times):
     plt.grid()
     plt.show()
 
-    print(f"Priemerný počet plánovaných pacientov: {avg_planned:.2f}")
-    print(f"Priemerný počet akútnych pacientov: {avg_acute:.2f}")
+#    print(f"Priemerný počet plánovaných pacientov: {avg_planned:.2f}")
+ #   print(f"Priemerný počet akútnych pacientov: {avg_acute:.2f}")
     print(f"Priemerný čas čakania po {REPLICATIONS} replikáciách: {average_waiting_time:.2f} minút")
     print("Vyťaženosť doktorov:")
     for doc, utilization in doctor_average_utilization.items():
@@ -144,13 +143,16 @@ def generate_times_exp1():
     return appointment_times, acute_cases
 
 def generate_times_exp2():
-    appointment_times = [t + random.randint(*APPOINTMENT_VARIATION) for t in range(0, END_TIME, 10)]
+    appointment_times = []
+    for t in range(0, END_TIME, 10):
+        for _ in range(1):
+            appointment_times.append(t + random.randint(*APPOINTMENT_VARIATION))
     acute_cases = [random.randint(0, END_TIME) for _ in range(random.randint(*ACUTE_CASES_PER_DAY))]
     return appointment_times, acute_cases
 
 def generate_times_exp3():
     appointment_times = []
-    for t in range(0, END_TIME, 20):
+    for t in range(0, END_TIME, 21):
         for _ in range(2):
             appointment_times.append(t + random.randint(*APPOINTMENT_VARIATION))
     acute_cases = [random.randint(0, END_TIME) for _ in range(random.randint(*ACUTE_CASES_PER_DAY))]
