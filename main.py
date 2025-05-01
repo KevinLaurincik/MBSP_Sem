@@ -8,9 +8,9 @@ ACUTE_CASES_PER_DAY = (6, 10)
 TREATMENT_TIME_NORMAL = (20, 30)
 TREATMENT_TIME_COMPLEX = (40, 60)
 COMPLEX_CASE_PROB = 0.2
+APPOINTMENT_VARIATION = (-10, 10)
 END_TIME = SHIFT_HOURS * 60
 REPLICATIONS = 1000
-
 
 class Patient:
     def __init__(self, arrival_time, urgent=False):
@@ -132,34 +132,37 @@ def run_experiment(experiment_number, generate_times):
         print(f"  Doktor {doc + 1}: {utilization:.2f}%")
 
 
-# Funkcie na generovanie časov pre každý experiment
 def generate_times_exp1():
     appointment_times = []
     for t in range(0, END_TIME - 3 * 60, 45):
-        appointment_times += [t] * 3
+        for _ in range(3):
+            appointment_times.append(t + random.randint(*APPOINTMENT_VARIATION))
     for t in range(3 * 60, END_TIME, 25):
-        appointment_times += [t] * 3
+        for _ in range(3):
+            appointment_times.append(t + random.randint(*APPOINTMENT_VARIATION))
     acute_cases = [random.randint(0, END_TIME - 3 * 60) for _ in range(random.randint(*ACUTE_CASES_PER_DAY))]
     return appointment_times, acute_cases
 
 def generate_times_exp2():
-    appointment_times = [t for t in range(0, END_TIME, 10)]
+    appointment_times = [t + random.randint(*APPOINTMENT_VARIATION) for t in range(0, END_TIME, 10)]
     acute_cases = [random.randint(0, END_TIME) for _ in range(random.randint(*ACUTE_CASES_PER_DAY))]
     return appointment_times, acute_cases
 
 def generate_times_exp3():
     appointment_times = []
     for t in range(0, END_TIME, 20):
-        appointment_times += [t] * 2
+        for _ in range(2):
+            appointment_times.append(t + random.randint(*APPOINTMENT_VARIATION))
     acute_cases = [random.randint(0, END_TIME) for _ in range(random.randint(*ACUTE_CASES_PER_DAY))]
     return appointment_times, acute_cases
 
 def generate_times_exp4():
     appointment_times = []
     for t in range(0, END_TIME, 25):
-        appointment_times += [t] * 2
+        for _ in range(2):
+            appointment_times.append(t + random.randint(*APPOINTMENT_VARIATION))
     for t in range(0, END_TIME, 55):
-        appointment_times += [t] * 1
+        appointment_times.append(t + random.randint(*APPOINTMENT_VARIATION))
     acute_cases = [random.randint(0, END_TIME) for _ in range(random.randint(*ACUTE_CASES_PER_DAY))]
     return appointment_times, acute_cases
 
