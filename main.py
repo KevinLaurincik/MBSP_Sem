@@ -22,43 +22,6 @@ class Patient:
             self.treatment_time = random.randint(*TREATMENT_TIME_NORMAL)
 
 
-def run_experiment(experiment_number, generate_times):
-    print(f"\n--- Spúšťa sa Experiment {experiment_number} ---")
-
-    total_waiting_time = []
-    doctor_utilization_aggregated = {i: [] for i in range(NUM_DOCTORS)}
-    final_time_stamps = []
-    final_queue_sizes = []
-
-    for _ in range(REPLICATIONS):
-        avg_waiting_time, doctor_utilization, time_stamps, queue_sizes = simulate_clinic(generate_times)
-        total_waiting_time.append(avg_waiting_time)
-        for doc, utilization in doctor_utilization.items():
-            doctor_utilization_aggregated[doc].append(utilization)
-
-        final_time_stamps = time_stamps
-        final_queue_sizes = queue_sizes
-
-    average_waiting_time = sum(total_waiting_time) / len(total_waiting_time)
-    doctor_average_utilization = {
-        doc: sum(utilizations) / len(utilizations)
-        for doc, utilizations in doctor_utilization_aggregated.items()
-    }
-
-    plt.figure(figsize=(10, 5))
-    plt.plot(final_time_stamps, final_queue_sizes, marker='o', linestyle='-')
-    plt.xlabel("Čas (min)")
-    plt.ylabel("Počet pacientov v rade")
-    plt.title(f"Experiment {experiment_number}: Závislosť počtu pacientov v rade od času")
-    plt.grid()
-    plt.show()
-
-    print(f"Priemerný čas čakania po {REPLICATIONS} replikáciách: {average_waiting_time:.2f} minút")
-    print("Vyťaženosť doktorov:")
-    for doc, utilization in doctor_average_utilization.items():
-        print(f"Doktor {doc + 1}: {utilization:.2f}%")
-
-
 def simulate_clinic(generate_times_fn):
     event_list = []
     doctor_busy_time = {i: 0 for i in range(NUM_DOCTORS)}
@@ -70,6 +33,9 @@ def simulate_clinic(generate_times_fn):
     treated_patients = 0
 
     appointment_times, acute_cases = generate_times_fn()
+
+    planned_patient_count = len(appointment_times)
+    acute_patient_count = len(acute_cases)
 
     for time in appointment_times:
         event_list.append(("arrival", time, Patient(time)))
@@ -114,7 +80,56 @@ def simulate_clinic(generate_times_fn):
     avg_waiting_time = total_waiting_time / max(1, treated_patients)
     doctor_utilization = {doc: (busy_time / END_TIME) * 100 for doc, busy_time in doctor_busy_time.items()}
 
-    return avg_waiting_time, doctor_utilization, time_stamps, queue_size_over_time
+    return avg_waiting_time, doctor_utilization, time_stamps, queue_size_over_time, planned_patient_count, acute_patient_count
+
+
+def run_experiment(experiment_number, generate_times):
+    print(f"\n--- Spúšťa sa Experiment {experiment_number} ---")
+
+    total_waiting_time = []
+    doctor_utilization_aggregated = {i: [] for i in range(NUM_DOCTORS)}
+    final_time_stamps = []
+    final_queue_sizes = []
+
+    all_planned_counts = []
+    all_acute_counts = []
+
+    for _ in range(REPLICATIONS):
+        result = simulate_clinic(generate_times)
+        avg_waiting_time, doctor_utilization, time_stamps, queue_sizes, planned_count, acute_count = result
+
+        total_waiting_time.append(avg_waiting_time)
+        for doc, utilization in doctor_utilization.items():
+            doctor_utilization_aggregated[doc].append(utilization)
+
+        final_time_stamps = time_stamps
+        final_queue_sizes = queue_sizes
+        all_planned_counts.append(planned_count)
+        all_acute_counts.append(acute_count)
+
+    average_waiting_time = sum(total_waiting_time) / len(total_waiting_time)
+    doctor_average_utilization = {
+        doc: sum(utilizations) / len(utilizations)
+        for doc, utilizations in doctor_utilization_aggregated.items()
+    }
+
+    avg_planned = sum(all_planned_counts) / REPLICATIONS
+    avg_acute = sum(all_acute_counts) / REPLICATIONS
+
+    plt.figure(figsize=(10, 5))
+    plt.plot(final_time_stamps, final_queue_sizes, marker='o', linestyle='-')
+    plt.xlabel("Čas (min)")
+    plt.ylabel("Počet pacientov v rade")
+    plt.title(f"Experiment {experiment_number}: Závislosť počtu pacientov v rade od času")
+    plt.grid()
+    plt.show()
+
+    print(f"Priemerný počet plánovaných pacientov: {avg_planned:.2f}")
+    print(f"Priemerný počet akútnych pacientov: {avg_acute:.2f}")
+    print(f"Priemerný čas čakania po {REPLICATIONS} replikáciách: {average_waiting_time:.2f} minút")
+    print("Vyťaženosť doktorov:")
+    for doc, utilization in doctor_average_utilization.items():
+        print(f"  Doktor {doc + 1}: {utilization:.2f}%")
 
 
 # Funkcie na generovanie časov pre každý experiment
@@ -147,6 +162,7 @@ def generate_times_exp4():
         appointment_times += [t] * 1
     acute_cases = [random.randint(0, END_TIME) for _ in range(random.randint(*ACUTE_CASES_PER_DAY))]
     return appointment_times, acute_cases
+
 
 # Spustenie všetkých experimentov
 run_experiment(1, generate_times_exp1)
