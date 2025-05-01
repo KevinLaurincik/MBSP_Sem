@@ -1,200 +1,148 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import heapq
 import random
-from collections import defaultdict
+import matplotlib.pyplot as plt
+
+# Globálne parametre
+NUM_DOCTORS = 4
+SHIFT_HOURS = 6
+ACUTE_CASES_PER_DAY = (6, 10)
+TREATMENT_TIME_NORMAL = (20, 30)
+TREATMENT_TIME_COMPLEX = (40, 60)
+COMPLEX_CASE_PROB = 0.2
+END_TIME = SHIFT_HOURS * 60
+REPLICATIONS = 1000
 
 
-class DentistClinic:
-    def __init__(self, num_doctors=4):
-        self.num_doctors = num_doctors
-        self.doctors = [0] * num_doctors  # Čas, kedy bude doktor voľný
-        self.waiting_queue = []
-        self.waiting_times = []
-        self.patients_processed = 0
-        self.total_processing_time = 0
-        self.urgent_cases = 0
-
-    def add_patient(self, arrival_time, is_urgent=False, scheduled_duration=None):
-        if is_urgent:
-            # Urgentný prípad - vložíme na začiatok fronty
-            heapq.heappush(self.waiting_queue, (0, arrival_time, scheduled_duration))
-            self.urgent_cases += 1
+class Patient:
+    def __init__(self, arrival_time, urgent=False):
+        self.arrival_time = arrival_time
+        self.urgent = urgent
+        if random.random() < COMPLEX_CASE_PROB:
+            self.treatment_time = random.randint(*TREATMENT_TIME_COMPLEX)
         else:
-            # Normálny prípad - vložíme na koniec fronty
-            heapq.heappush(self.waiting_queue, (1, arrival_time, scheduled_duration))
-
-    def process_patients(self, current_time):
-        # Skontrolujeme, či niektorý doktor je voľný a či sú pacienti v čakárni
-        while self.waiting_queue and min(self.doctors) <= current_time:
-            # Nájdeme prvého voľného doktora
-            doctor_idx = np.argmin(self.doctors)
-            doctor_free_time = self.doctors[doctor_idx]
-
-            # Zoberieme ďalšieho pacienta z fronty
-            priority, arrival_time, duration = heapq.heappop(self.waiting_queue)
-
-            # Skutočný čas začiatku ošetrenia
-            start_time = max(arrival_time, doctor_free_time)
-
-            # Čakacia doba
-            waiting_time = start_time - arrival_time
-            self.waiting_times.append(waiting_time)
-
-            # Aktualizujeme čas doktora
-            self.doctors[doctor_idx] = start_time + duration
-            self.patients_processed += 1
-            self.total_processing_time += duration
-
-    def get_stats(self):
-        avg_waiting_time = np.mean(self.waiting_times) if self.waiting_times else 0
-        total_time = max(self.doctors) if self.doctors else 0
-        utilization = self.total_processing_time / (self.num_doctors * total_time) if total_time > 0 else 0
-
-        return {
-            'avg_waiting_time': avg_waiting_time,
-            'utilization': utilization,
-            'patients_processed': self.patients_processed,
-            'urgent_cases': self.urgent_cases,
-            'queue_lengths': self.queue_lengths if hasattr(self, 'queue_lengths') else []
-        }
+            self.treatment_time = random.randint(*TREATMENT_TIME_NORMAL)
 
 
-def simulate_day(scenario_func, num_doctors=4, show_plot=True):
-    clinic = DentistClinic(num_doctors)
-    clinic.queue_lengths = []
+def run_experiment(experiment_number, generate_times):
+    print(f"\n--- Spúšťa sa Experiment {experiment_number} ---")
 
-    # Simulácia času v minútach počas 6-hodinovej smeny
-    simulation_duration = 6 * 60
-    urgent_prob = 10 / (6 * 60)  # 10 urgentných prípadov za 6 hodín
+    total_waiting_time = []
+    doctor_utilization_aggregated = {i: [] for i in range(NUM_DOCTORS)}
+    final_time_stamps = []
+    final_queue_sizes = []
 
-    # Naplánované príchody pacientov podľa scenára
-    scheduled_arrivals = scenario_func()
+    for _ in range(REPLICATIONS):
+        avg_waiting_time, doctor_utilization, time_stamps, queue_sizes = simulate_clinic(generate_times)
+        total_waiting_time.append(avg_waiting_time)
+        for doc, utilization in doctor_utilization.items():
+            doctor_utilization_aggregated[doc].append(utilization)
 
-    # Simulácia každú minútu
-    for minute in range(simulation_duration):
-        # Pridanie urgentných prípadov
-        if random.random() < urgent_prob:
-            duration = random.uniform(20, 30)
-            clinic.add_patient(minute, is_urgent=True, scheduled_duration=duration)
+        final_time_stamps = time_stamps
+        final_queue_sizes = queue_sizes
 
-        # Pridanie naplánovaných pacientov
-        for arrival in scheduled_arrivals:
-            if arrival == minute:
-                # Pacienti neprídu presne, ale +-10 minút
-                actual_arrival = minute + random.randint(-10, 10)
-                actual_arrival = max(0, min(actual_arrival, simulation_duration - 1))
+    average_waiting_time = sum(total_waiting_time) / len(total_waiting_time)
+    doctor_average_utilization = {
+        doc: sum(utilizations) / len(utilizations)
+        for doc, utilizations in doctor_utilization_aggregated.items()
+    }
 
-                # Normálne ošetrenie trvá 20-30 minút, každý 5. má komplikáciu
-                if random.random() < 0.2:  # 20% šanca na komplikáciu
-                    duration = random.uniform(40, 60)
-                else:
-                    duration = random.uniform(20, 30)
+    plt.figure(figsize=(10, 5))
+    plt.plot(final_time_stamps, final_queue_sizes, marker='o', linestyle='-')
+    plt.xlabel("Čas (min)")
+    plt.ylabel("Počet pacientov v rade")
+    plt.title(f"Experiment {experiment_number}: Závislosť počtu pacientov v rade od času")
+    plt.grid()
+    plt.show()
 
-                clinic.add_patient(actual_arrival, is_urgent=False, scheduled_duration=duration)
-
-        # Spracovanie pacientov
-        clinic.process_patients(minute)
-
-        # Zaznamenanie dĺžky fronty
-        clinic.queue_lengths.append(len(clinic.waiting_queue))
-
-    # Výpočet štatistík
-    stats = clinic.get_stats()
-
-    # Vykreslenie grafu
-    if show_plot:
-        plt.figure(figsize=(10, 5))
-        plt.plot(clinic.queue_lengths)
-        plt.title('Počet pacientov v čakárni v priebehu dňa')
-        plt.xlabel('Čas (minúty)')
-        plt.ylabel('Počet pacientov v čakárni')
-        plt.grid(True)
-        plt.show()
-
-    return stats
+    print(f"Priemerný čas čakania po {REPLICATIONS} replikáciách: {average_waiting_time:.2f} minút")
+    print("Vyťaženosť doktorov:")
+    for doc, utilization in doctor_average_utilization.items():
+        print(f"Doktor {doc + 1}: {utilization:.2f}%")
 
 
-# Definície scenárov
-def scenario_1():
-    # 4 pacienti každých 30 minút (48 pacientov denne)
-    arrivals = []
-    for interval in range(0, 6 * 60, 30):
-        for _ in range(4):
-            arrivals.append(interval)
-    return arrivals
+def simulate_clinic(generate_times_fn):
+    event_list = []
+    doctor_busy_time = {i: 0 for i in range(NUM_DOCTORS)}
+    doctors_available = list(range(NUM_DOCTORS))
+    waiting_queue = []
+    queue_size_over_time = []
+    time_stamps = []
+    total_waiting_time = 0
+    treated_patients = 0
+
+    appointment_times, acute_cases = generate_times_fn()
+
+    for time in appointment_times:
+        event_list.append(("arrival", time, Patient(time)))
+    for time in acute_cases:
+        event_list.append(("arrival", time, Patient(time, urgent=True)))
+
+    event_list.sort(key=lambda x: x[1])
+    current_time = 0
+
+    while event_list:
+        event_type, event_time, patient = event_list.pop(0)
+        current_time = event_time
+
+        time_stamps.append(current_time)
+        queue_size_over_time.append(len(waiting_queue))
+
+        if event_type == "arrival":
+            if doctors_available:
+                doctor = doctors_available.pop(0)
+                doctor_busy_time[doctor] += patient.treatment_time
+                event_list.append(("release_doctor", current_time + patient.treatment_time, doctor))
+                event_list.sort(key=lambda x: x[1])
+            else:
+                waiting_queue.append(patient)
+
+        elif event_type == "release_doctor":
+            doctor = patient
+            doctors_available.append(doctor)
+            if waiting_queue:
+                p = waiting_queue.pop(0)
+                waiting_time = current_time - p.arrival_time
+                total_waiting_time += waiting_time
+                treated_patients += 1
+                doctor_busy_time[doctor] += p.treatment_time
+                doctors_available.remove(doctor)
+                event_list.append(("release_doctor", current_time + p.treatment_time, doctor))
+                event_list.sort(key=lambda x: x[1])
+
+        time_stamps.append(current_time)
+        queue_size_over_time.append(len(waiting_queue))
+
+    avg_waiting_time = total_waiting_time / max(1, treated_patients)
+    doctor_utilization = {doc: (busy_time / END_TIME) * 100 for doc, busy_time in doctor_busy_time.items()}
+
+    return avg_waiting_time, doctor_utilization, time_stamps, queue_size_over_time
 
 
-def scenario_2():
-    # 3 pacienti každých 20 minút (54 pacientov denne)
-    arrivals = []
-    for interval in range(0, 6 * 60, 20):
-        for _ in range(3):
-            arrivals.append(interval)
-    return arrivals
+# Funkcie na generovanie časov pre každý experiment
+def generate_times_exp1():
+    appointment_times = []
+    for t in range(0, END_TIME - 3 * 60, 45):
+        appointment_times += [t] * 3
+    for t in range(3 * 60, END_TIME, 25):
+        appointment_times += [t] * 3
+    acute_cases = [random.randint(0, END_TIME - 3 * 60) for _ in range(random.randint(*ACUTE_CASES_PER_DAY))]
+    return appointment_times, acute_cases
 
 
-def scenario_3():
-    # 2 pacienti každých 15 minút (48 pacientov denne)
-    arrivals = []
-    for interval in range(0, 6 * 60, 15):
-        for _ in range(2):
-            arrivals.append(interval)
-    return arrivals
+def generate_times_exp2():
+    appointment_times = [t for t in range(0, END_TIME, 10)]
+    acute_cases = [random.randint(0, END_TIME) for _ in range(random.randint(*ACUTE_CASES_PER_DAY))]
+    return appointment_times, acute_cases
 
-# Nový optimalizovaný scenár
-def optimal_scenario():
-    # 2 pacienti každých 19 minút (32-33 pacientov denne)
-    arrivals = []
-    for interval in range(0, 6*60, 19):
-        for _ in range(2):
-            arrivals.append(interval)
-    return arrivals
 
-# Spustenie simulácií
-print("Scenár 1: 4 pacienti každých 30 minút (48 pacientov denne)")
-stats1 = simulate_day(scenario_1)
-print(f"Priemerná čakacia doba: {stats1['avg_waiting_time']:.2f} min")
-print(f"Vyťaženosť doktorov: {stats1['utilization']*100:.2f}%")
-print(f"Spracovaných pacientov: {stats1['patients_processed']}")
-print(f"Urgentné prípady: {stats1['urgent_cases']}\n")
+def generate_times_exp3():
+    appointment_times = []
+    for t in range(0, END_TIME, 20):
+        appointment_times += [t] * 2
+    acute_cases = [random.randint(0, END_TIME) for _ in range(random.randint(*ACUTE_CASES_PER_DAY))]
+    return appointment_times, acute_cases
 
-print("Scenár 2: 3 pacienti každých 20 minút (54 pacientov denne)")
-stats2 = simulate_day(scenario_2)
-print(f"Priemerná čakacia doba: {stats2['avg_waiting_time']:.2f} min")
-print(f"Vyťaženosť doktorov: {stats2['utilization']*100:.2f}%")
-print(f"Spracovaných pacientov: {stats2['patients_processed']}")
-print(f"Urgentné prípady: {stats2['urgent_cases']}\n")
 
-print("Scenár 3: 2 pacienti každých 15 minút (48 pacientov denne)")
-stats3 = simulate_day(scenario_3)
-print(f"Priemerná čakacia doba: {stats3['avg_waiting_time']:.2f} min")
-print(f"Vyťaženosť doktorov: {stats3['utilization']*100:.2f}%")
-print(f"Spracovaných pacientov: {stats3['patients_processed']}")
-print(f"Urgentné prípady: {stats3['urgent_cases']}\n")
-
-print("Optimalizovaný scenár: 2 pacienti každých 19 minút (36 pacientov denne)")
-stats_opt = simulate_day(optimal_scenario)
-print(f"Priemerná čakacia doba: {stats_opt['avg_waiting_time']:.2f} min")
-print(f"Vyťaženosť doktorov: {stats_opt['utilization']*100:.2f}%")
-print(f"Spracovaných pacientov: {stats_opt['patients_processed']}")
-print(f"Urgentné prípady: {stats_opt['urgent_cases']}\n")
-
-# Viacnásobná simulácia pre presnejšie výsledky
-print("\nPresnejšie výsledky pre optimálny scenár (20 simulácií):")
-wait_times = []
-utilizations = []
-patients_processed = []
-urgent_cases = []
-
-for _ in range(20):
-    stats = simulate_day(optimal_scenario, show_plot=False)
-    wait_times.append(stats['avg_waiting_time'])
-    utilizations.append(stats['utilization']*100)
-    patients_processed.append(stats['patients_processed'])
-    urgent_cases.append(stats['urgent_cases'])
-
-print(f"Priemerná čakacia doba: {np.mean(wait_times):.2f} ± {np.std(wait_times):.2f} min")
-print(f"Priemerná vyťaženosť: {np.mean(utilizations):.2f} ± {np.std(utilizations):.2f}%")
-print(f"Priemerný počet pacientov: {np.mean(patients_processed):.1f} ± {np.std(patients_processed):.1f}")
-print(f"Priemerné urgentné prípady: {np.mean(urgent_cases):.1f} ± {np.std(urgent_cases):.1f}")
+# Spustenie všetkých experimentov
+run_experiment(1, generate_times_exp1)
+run_experiment(2, generate_times_exp2)
+run_experiment(3, generate_times_exp3)
