@@ -127,12 +127,10 @@ def generate_times_exp1():
     acute_cases = [random.randint(0, END_TIME - 3 * 60) for _ in range(random.randint(*ACUTE_CASES_PER_DAY))]
     return appointment_times, acute_cases
 
-
 def generate_times_exp2():
     appointment_times = [t for t in range(0, END_TIME, 10)]
     acute_cases = [random.randint(0, END_TIME) for _ in range(random.randint(*ACUTE_CASES_PER_DAY))]
     return appointment_times, acute_cases
-
 
 def generate_times_exp3():
     appointment_times = []
@@ -141,8 +139,17 @@ def generate_times_exp3():
     acute_cases = [random.randint(0, END_TIME) for _ in range(random.randint(*ACUTE_CASES_PER_DAY))]
     return appointment_times, acute_cases
 
+def generate_times_exp4():
+    appointment_times = []
+    for t in range(0, END_TIME, 25):
+        appointment_times += [t] * 2
+    for t in range(0, END_TIME, 55):
+        appointment_times += [t] * 1
+    acute_cases = [random.randint(0, END_TIME) for _ in range(random.randint(*ACUTE_CASES_PER_DAY))]
+    return appointment_times, acute_cases
 
 # Spustenie všetkých experimentov
 run_experiment(1, generate_times_exp1)
 run_experiment(2, generate_times_exp2)
 run_experiment(3, generate_times_exp3)
+run_experiment(4, generate_times_exp4)
