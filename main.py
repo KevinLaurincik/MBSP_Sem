@@ -91,8 +91,8 @@ def run_experiment(experiment_number, generate_times):
     final_time_stamps = []
     final_queue_sizes = []
 
-#    all_planned_counts = []
-#    all_acute_counts = []
+    all_planned_counts = []
+    all_acute_counts = []
 
     for _ in range(REPLICATIONS):
         result = simulate_clinic(generate_times)
@@ -104,8 +104,8 @@ def run_experiment(experiment_number, generate_times):
 
         final_time_stamps = time_stamps
         final_queue_sizes = queue_sizes
-#        all_planned_counts.append(planned_count)
-#        all_acute_counts.append(acute_count)
+        all_planned_counts.append(planned_count)
+        all_acute_counts.append(acute_count)
 
     average_waiting_time = sum(total_waiting_time) / len(total_waiting_time)
     doctor_average_utilization = {
@@ -113,8 +113,8 @@ def run_experiment(experiment_number, generate_times):
         for doc, utilizations in doctor_utilization_aggregated.items()
     }
 
-#    avg_planned = sum(all_planned_counts) / REPLICATIONS
-#    avg_acute = sum(all_acute_counts) / REPLICATIONS
+    avg_planned = sum(all_planned_counts) / REPLICATIONS
+    avg_acute = sum(all_acute_counts) / REPLICATIONS
 
     plt.figure(figsize=(10, 5))
     plt.plot(final_time_stamps, final_queue_sizes, marker='o', linestyle='-')
@@ -124,8 +124,8 @@ def run_experiment(experiment_number, generate_times):
     plt.grid()
     plt.show()
 
-#    print(f"Priemerný počet plánovaných pacientov: {avg_planned:.2f}")
- #   print(f"Priemerný počet akútnych pacientov: {avg_acute:.2f}")
+    print(f"Priemerný počet plánovaných pacientov: {avg_planned:.2f}")
+    print(f"Priemerný počet akútnych pacientov: {avg_acute:.2f}")
     print(f"Priemerný čas čakania po {REPLICATIONS} replikáciách: {average_waiting_time:.2f} minút")
     print("Vyťaženosť doktorov:")
     for doc, utilization in doctor_average_utilization.items():
@@ -141,8 +141,11 @@ def generate_times_exp1():
         for _ in range(3):
             appointment_times.append(t + random.randint(*APPOINTMENT_VARIATION))
 
+    # rovnomerne pre akutne pripady
     #acute_cases = [random.randint(0, END_TIME - 3 * 60) for _ in range(random.randint(*ACUTE_CASES_PER_DAY))]
-    num_acute_cases = np.random.poisson(lam=8)  # napr. priemerný počet 8
+
+    # poissonovo pre akutne pripady
+    num_acute_cases = np.random.poisson(lam=8)
     acute_cases = [random.randint(0, END_TIME - 3 * 60) for _ in range(num_acute_cases)]
     return appointment_times, acute_cases
 
@@ -177,7 +180,11 @@ def generate_times_exp4():
             appointment_times.append(t + random.randint(*APPOINTMENT_VARIATION))
     for t in range(0, END_TIME, 60):
         appointment_times.append(t + random.randint(*APPOINTMENT_VARIATION))
-    #acute_cases = [random.randint(0, END_TIME) for _ in range(random.randint(*ACUTE_CASES_PER_DAY))]
+
+    # rovnomerne pre akutne pripady
+    # acute_cases = [random.randint(0, END_TIME) for _ in range(random.randint(*ACUTE_CASES_PER_DAY))]
+
+    # poissonovo pre akutne pripady
     num_acute_cases = np.random.poisson(lam=8)
     acute_cases = [random.randint(0, END_TIME) for _ in range(num_acute_cases)]
     return appointment_times, acute_cases
